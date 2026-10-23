@@ -22,7 +22,7 @@
 /* Encoder Configuration */
 #define ENCODER_DEFAULT_POS 0x3
 
-/* Enable caps-lock LED */
-#define CAPS_LOCK_LED_INDEX 45
+/* Status LEDs */
+#define CAPS_WORD_LED_INDEX 59
 
 #define DOUBLE_TAP_SHIFT_TURNS_ON_CAPS_WORD

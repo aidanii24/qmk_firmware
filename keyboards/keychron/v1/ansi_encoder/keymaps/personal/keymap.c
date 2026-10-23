@@ -70,3 +70,22 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
     [WIN_FN]   = { ENCODER_CCW_CW(RM_VALD, RM_VALU)}
 };
 #endif // ENCODER_MAP_ENABLE
+
+#if defined(RGB_MATRIX_ENABLE) && defined(CAPS_WORD_ENABLE) && defined(CAPS_WORD_LED_INDEX)
+
+bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    if (host_keyboard_led_state().caps_lock) {
+        RGB_MATRIX_INDICATOR_SET_COLOR(CAPS_WORD_LED_INDEX, 197, 205, 241);
+    } else if (is_caps_word_on()) {
+        RGB_MATRIX_INDICATOR_SET_COLOR(CAPS_WORD_LED_INDEX, 41, 64, 168);
+    } else {
+        if (!rgb_matrix_get_flags()) {
+            RGB_MATRIX_INDICATOR_SET_COLOR(CAPS_WORD_LED_INDEX, 0, 0, 0);
+        }
+    }
+
+    // return rgb_matrix_indicators_advanced_kb(led_min, led_max);
+    return true;
+}
+
+#endif
