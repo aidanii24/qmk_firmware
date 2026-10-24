@@ -73,18 +73,82 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
 
 #if defined(RGB_MATRIX_ENABLE) && defined(CAPS_WORD_ENABLE) && defined(CAPS_WORD_LED_INDEX)
 
+enum Caps_Word_State {
+    MIN_LIGHT = 0,
+    INCREASING,
+    MAX_LIGHT,
+    DECREASING
+};
+
+const uint16_t CAPS_WORD_ANIM_REST_DURATION = 500;
+const uint16_t CAPS_WORD_ANIM_FADE_DURATION = 1000;
+
+static uint16_t caps_word_last_state_time = 0;
+enum Caps_Word_State caps_word_state = INCREASING;
+
+float clampfn(float base) {
+    const float min_base = base < 0.0f ? 0.0f : base;
+    return min_base > 1.0f ? 1.0f : min_base;
+}
+
+float get_bezier_blend(float base) {
+    const float clamped = clampfn(base);
+    return clamped * clamped * (3.0f - 2.0f * clamped);
+}
+
+void change_caps_word_state(enum Caps_Word_State state) {
+    caps_word_last_state_time = timer_read();
+    caps_word_state = state;
+}
+
+float get_next_fading_animation(void) {
+    if (caps_word_last_state_time == 0) { caps_word_last_state_time = timer_read(); }
+    uint16_t time_delta = timer_elapsed(caps_word_last_state_time);
+
+    switch(caps_word_state) {
+        case MAX_LIGHT:
+            if (time_delta > CAPS_WORD_ANIM_REST_DURATION) {
+                change_caps_word_state(DECREASING);
+            }
+            return 1.0f;
+        case DECREASING:
+            if (time_delta > CAPS_WORD_ANIM_FADE_DURATION) {
+                change_caps_word_state(MIN_LIGHT);
+            }
+            return get_bezier_blend(1.0f - time_delta / CAPS_WORD_ANIM_FADE_DURATION);
+        case MIN_LIGHT:
+            if (time_delta > CAPS_WORD_ANIM_REST_DURATION) {
+                change_caps_word_state(INCREASING);
+            }
+            return 0.0f;
+        default:
+            if (time_delta > CAPS_WORD_ANIM_FADE_DURATION) {
+                change_caps_word_state(MAX_LIGHT);
+            }
+            return get_bezier_blend(time_delta / CAPS_WORD_ANIM_FADE_DURATION);
+    }
+}
+
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     if (host_keyboard_led_state().caps_lock) {
         RGB_MATRIX_INDICATOR_SET_COLOR(CAPS_WORD_LED_INDEX, 197, 205, 241);
     } else if (is_caps_word_on()) {
-        RGB_MATRIX_INDICATOR_SET_COLOR(CAPS_WORD_LED_INDEX, 41, 64, 168);
+        const float intensity = get_next_fading_animation();
+        const uint8_t red = (uint8_t)(intensity * 41);
+        const uint8_t green = (uint8_t)(intensity * 64);
+        const uint8_t blue = (uint8_t)(intensity * 128);
+
+        RGB_MATRIX_INDICATOR_SET_COLOR(CAPS_WORD_LED_INDEX, red, green, blue);
     } else {
+        if (caps_word_last_state_time > 0) {
+            caps_word_last_state_time = 0;
+            caps_word_state = INCREASING;
+        }
         if (!rgb_matrix_get_flags()) {
             RGB_MATRIX_INDICATOR_SET_COLOR(CAPS_WORD_LED_INDEX, 0, 0, 0);
         }
     }
 
-    // return rgb_matrix_indicators_advanced_kb(led_min, led_max);
     return true;
 }
 
